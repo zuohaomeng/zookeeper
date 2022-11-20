@@ -126,6 +126,7 @@ public class QuorumPeerMain {
         }
 
         // Start and schedule the the purge task
+        //定时清理日志的
         DatadirCleanupManager purgeMgr = new DatadirCleanupManager(
             config.getDataDir(),
             config.getDataLogDir(),
@@ -138,6 +139,7 @@ public class QuorumPeerMain {
         } else {
             LOG.warn("Either no config or no quorum defined in config, running in standalone mode");
             // there is only server in the quorum -- run as standalone
+            //没配置相当于走单机的启动
             ZooKeeperServerMain.main(args);
         }
     }
@@ -161,6 +163,7 @@ public class QuorumPeerMain {
         try {
             ServerMetrics.metricsProviderInitialized(metricsProvider);
             ProviderRegistry.initialize();
+            //生成客户端的连接，ServerCnxn为客户端和一个server的连接实体
             ServerCnxnFactory cnxnFactory = null;
             ServerCnxnFactory secureCnxnFactory = null;
 
@@ -225,7 +228,7 @@ public class QuorumPeerMain {
             if (config.jvmPauseMonitorToRun) {
                 quorumPeer.setJvmPauseMonitor(new JvmPauseMonitor(config));
             }
-
+            //开始启动了
             quorumPeer.start();
             ZKAuditProvider.addZKStartStopAuditLog();
             quorumPeer.join();

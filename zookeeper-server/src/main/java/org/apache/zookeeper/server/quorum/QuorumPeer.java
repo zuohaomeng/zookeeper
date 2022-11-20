@@ -1128,15 +1128,22 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         if (!getView().containsKey(myid)) {
             throw new RuntimeException("My id " + myid + " not in the peer list");
         }
+        //涉及到的核心类是 ZKDatabase，
+        // 并借助于 FileTxnSnapLog 工具类将 snap 和 transaction log 反序列化到内存中，
+        // 最终构建出内存数据结构 DataTree。
         loadDataBase();
+        //启动ServerCnxnFactory，本质上是一个netty
         startServerCnxnFactory();
         try {
             adminServer.start();
         } catch (AdminServerException e) {
             LOG.warn("Problem starting AdminServer", e);
         }
+        //这个主要是初始化一些 Leader 选举工作。
         startLeaderElection();
+        //启动jvm
         startJvmPauseMonitor();
+        //QuorumPeer本身就是一个线程
         super.start();
     }
 
@@ -1338,6 +1345,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         case 2:
             throw new UnsupportedOperationException("Election Algorithm 2 is not supported.");
         case 3:
+            //QuorumCnxManager 就是用来管理维护选举期间网络 IO 通信的工具类。
             QuorumCnxManager qcm = createCnxnManager();
             QuorumCnxManager oldQcm = qcmRef.getAndSet(qcm);
             if (oldQcm != null) {
@@ -1347,6 +1355,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             QuorumCnxManager.Listener listener = qcm.listener;
             if (listener != null) {
                 listener.start();
+                //FastLeaderElection选举逻辑
                 FastLeaderElection fle = new FastLeaderElection(this, qcm);
                 fle.start();
                 le = fle;
@@ -1427,6 +1436,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         try {
             /*
              * Main loop
+             * 一直循环当前服务的状态，然后进行相应的处理
              */
             while (running) {
                 if (unavailableStartTime == 0) {
@@ -1436,6 +1446,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                 switch (getPeerState()) {
                 case LOOKING:
                     LOG.info("LOOKING");
+                    //监控，当前选举数加+1
                     ServerMetrics.getMetrics().LOOKING_COUNT.add(1);
 
                     if (Boolean.getBoolean("readonlymode.enabled")) {
@@ -1487,6 +1498,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                             reconfigFlagClear();
                             if (shuttingDownLE) {
                                 shuttingDownLE = false;
+                                //开始选举
                                 startLeaderElection();
                             }
                             setCurrentVote(makeLEStrategy().lookForLeader());
